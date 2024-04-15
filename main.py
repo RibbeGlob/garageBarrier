@@ -41,47 +41,15 @@ class Pattern(sg.Window, ABC):
             pass
 
 
-# Klasa odpowiedzialna za interfejs łączenia się z RPI
-class ConnectRaspberry(Pattern):
-    def __init__(self):
-        field = (200, 100)
-        self.response = None
-        self.ipList = be.findIp()
-        super().__init__(field)
-
-    def gui(self, *args):
-        super().gui([sg.Text("Wybierz adres IP Raspberry")],
-                     [sg.InputCombo(self.ipList, size=(22, 1), key="-IP-", readonly=True)],
-                    [sg.Button("Połącz", size=21, key='-BT-')])
-
-    def run(self, mapa, basicEvent = None):
-        map = {
-            '-BT-': self.connectButtonClicked,
-        }
-        super().run(map)
-
-    def connectButtonClicked(self, values):
-        ip = values['-IP-']
-        self.buttonEffect('-BT-', 'Połącz', self.backEndIntegration(ip, 12345))
-
-    def backEndIntegration(self, ip, port):
-        # connection = be.Connection(ip, 12345)
-        # connection.connect()
-        # connection.clientSocket.close()
-        self.close()
-        myMenu = MenuRaspberry(ip, port)
-        myMenu.gui()
-
-
 # Klasa odpowiedzialna za główne menu RPI
 class MenuRaspberry(Pattern):
-    def __init__(self, ip, port):
-        self.ip, self.port = ip, port
+    def __init__(self):
         size = (450, 240)
         super().__init__(size)
 
     def gui(self):
-        super().gui([
+        super().gui([sg.Frame('Zdjęcie ostatniego pojazadu', [])],
+            [
             sg.Frame('Sprawdź informacje na temat \naktualnych pojazdów', [
                 [sg.Multiline(default_text="", size=(25, 5), key="-AC-", autoscroll=True)],
                 [sg.Button("Uaktualnij dane", size=23, key='-BA-')]
@@ -109,8 +77,8 @@ class MenuRaspberry(Pattern):
 
 
 def main():
-    myGui = ConnectRaspberry()
-    myGui.gui()
+    myMenu = MenuRaspberry()
+    myMenu.gui()
 
 if __name__ == "__main__":
     main()

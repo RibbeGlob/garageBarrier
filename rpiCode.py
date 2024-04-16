@@ -1,6 +1,10 @@
 import RPi.GPIO as GPIO
 import time
 import subprocess
+import json
+import requests
+import os
+import datetime
 
 
 class Sensor:
@@ -27,10 +31,6 @@ class Sensor:
 
         return distance
 
-def capture_image():
-    # Wykonanie polecenia libcamera-still
-    subprocess.run(['libcamera-still', '-o', 'image.jpg'])
-
 
 class Engine:
     def __init__(self):
@@ -41,13 +41,14 @@ class Engine:
         GPIO.setup(self.ena_engine, GPIO.OUT)
         GPIO.output(self.in_one_engine, GPIO.LOW)
         GPIO.output(self.in_two_engine, GPIO.LOW)
-        self.pwm = GPIO.PWM(self.ena_engine, 1000)
+        if not hasattr(self, 'pwm'):
+            self.pwm = GPIO.PWM(self.ena_engine, 1000)
 
     def forward(self):
         start_time = time.time()
 
         while time.time() - start_time < 5:
-            self.pwm.start(50)
+            self.pwm.start(70)
             GPIO.output(self.in_one_engine, GPIO.HIGH)
             GPIO.output(self.in_two_engine, GPIO.LOW)
             time.sleep(0.5)
@@ -60,7 +61,7 @@ class Engine:
         start_time = time.time()
 
         while time.time() - start_time < 5:
-            self.pwm.start(50)
+            self.pwm.start(70)
             GPIO.output(self.in_one_engine, GPIO.LOW)
             GPIO.output(self.in_two_engine, GPIO.HIGH)
             time.sleep(0.5)
@@ -70,19 +71,57 @@ class Engine:
         GPIO.cleanup()
 
 
+def capture_image():
+    subprocess.run(['libcamera-still','-t 10', '-o', 'image.jpg'])
+    file_info = os.stat('image.jpg')
+    modification_time = file_info.st_mtime
+    readable_time = datetime.datetime.fromtimestamp(modification_time)
+    return readable_time
+
+
+def api():
+    path = r"/home/pi/samochodzik.jpg"
+    with open(path, 'rb') as fp:
+        response = requests.post(
+            'https://api.platerecognizer.com/v1/plate-reader/',
+            data=dict(regions=['pl'], config=json.dumps(dict(region="strict"))),
+            files=dict(upload=fp),
+            headers={'Authorization': 'Token 6bf05633011339939e0a8ca7002c6774318c63a6'})
+
+    if response.status_code == 201:
+        try:
+            #os.remove(path)
+            data = response.json()
+            return data["results"][0]['plate']
+        except FileNotFoundError:
+            return "error"
+    else:
+        return "error"
+
+def file_json(data, time):
+    with open('parking.json', 'w') as file:
+        json.dump({data : time}, file)
+
+def intEngine():
+    eng = None
+    file_time = capture_image()
+    time.sleep(2)
+    result = api()      # Tablica rejestracyjna
+    file_json(result, file_time)
+    if result != "error":
+        if not eng:
+            eng = Engine()
+        eng.forward()
 
 if __name__ == '__main__':
-    try:
-        while True:
-            dist = Sensor()
-            distance_value = dist.distance()
-            print("Measured Distance = %.1f cm" % distance_value)
-            if distance_value < 100:
-                print("Obstacle detected close. Taking a picture...")
-                capture_image()
-            time.sleep(1)
-
-    except KeyboardInterrupt:
-        print("Measurement stopped by User")
-        GPIO.cleanup()
-
+    confirm = 0
+    while True:
+        dist = Sensor()
+        distance_value = dist.distance()
+        print(distance_value)
+        if distance_value < 100:
+            if confirm == 2:
+                intEngine()
+                confirm = 0
+            confirm += 1
+        time.sleep(2)

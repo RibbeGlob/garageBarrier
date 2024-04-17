@@ -5,7 +5,8 @@ import json
 import requests
 import os
 import datetime
-
+from gpiozero import Button
+import threading
 
 class Sensor:
     def __init__(self):
@@ -102,7 +103,17 @@ def file_json(data, time):
     with open('parking.json', 'w') as file:
         json.dump({data : time}, file)
 
-def intEngine():
+def change_mode(current_value):
+    button = Button(3)
+    button.wait_for_press()
+    if current_value%2 == 0:
+        print('xd')
+    else:
+        print('xx')
+    current_value += 1
+    return current_value
+
+def main_logic():
     eng = None
     file_time = capture_image()
     time.sleep(2)
@@ -113,15 +124,39 @@ def intEngine():
             eng = Engine()
         eng.forward()
 
+
+
+def button_pressed():
+    global running
+    print("Przycisk został naciśnięty!")
+    running = False  # Zatrzymaj działanie pętli
+    time.sleep(5)     # Odczekaj 5 sekund
+    running = True    # Wznów działanie pętli
+    print("Program kontynuuje działanie...")
+
+
+
 if __name__ == '__main__':
     confirm = 0
-    while True:
-        dist = Sensor()
-        distance_value = dist.distance()
-        print(distance_value)
-        if distance_value < 100:
-            if confirm == 2:
-                intEngine()
-                confirm = 0
-            confirm += 1
-        time.sleep(2)
+    button = Button(4)
+    running = True
+    button.when_pressed = button_pressed
+    try:
+        while True:
+            if running:
+                # tutaj daj logikę przycisku
+                dist = Sensor()
+                distance_value = dist.distance()
+                print(distance_value)
+                if distance_value < 100:
+                    if confirm == 2:
+                        main_logic()
+                        confirm = 0
+                    confirm += 1
+                time.sleep(2)
+                print("Wykonuję pracę...")
+            time.sleep(1)  # Czekaj 1 sekundę, aby zmniejszyć użycie procesora
+    except KeyboardInterrupt:
+        print("Program zakończony przez użytkownika")
+    finally:
+        print("Zakończenie pracy programu")

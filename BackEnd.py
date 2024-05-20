@@ -1,7 +1,7 @@
 import os
 import PySimpleGUI as sg
-import socket
-
+import paramiko
+import json
 
 def findIp():
     import subprocess
@@ -29,42 +29,51 @@ def createFolder(folderName):
         sg.popup_error(e)
 
 
-# Połączenie socket
-class Connection:
-    def __init__(self, ip, port):
-        self.ip = ip
-        self.port = port
-        self.clientSocket = None
+def current_vehicles():
+    hostname = 'malinka.local'
+    port = 22  # Domyślny port SSH
+    username = 'pi'
+    password = 'malinka'
+    remote_path = r"/home/pi/parking.json"
+    local_path = r"C:\Users\gerfr\OneDrive\Pulpit\RPI\xd.json"
 
-    def connect(self):
-        try:
-            self.clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.clientSocket.connect((self.ip, self.port))
-            return True
-        except Exception as e:
-            sg.popup_error(f"Błąd połączenia {e}")
+    # Utworzenie klienta SSH
+    ssh_client = paramiko.SSHClient()
+    ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh_client.connect(hostname, port=port, username=username, password=password)
+    sftp = ssh_client.open_sftp()
+    sftp.get(remote_path, local_path)
+    sftp.close()
+    ssh_client.close()
+
+    with open(local_path, 'r') as file:
+        data = json.load(file)
+
+    formatted_data = "\n".join([f"{key}: {value}" for key, value in data.items()])
+    return formatted_data
 
 
-# Działanie na sockecie
-class Sending(Connection):
-    def __init__(self, ip, port):
-        super().__init__(ip, port)
+def past_vehicles(window, values):
+    hostname = 'malinka.local'
+    port = 22  # Domyślny port SSH
+    username = 'pi'
+    password = 'malinka'
+    remote_path = r"/home/pi/parking.json"
+    local_path = r"C:\Users\gerfr\OneDrive\Pulpit\RPI\xd.json"
 
-    def sendData(self, data, which):
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as clientSocket:
-                clientSocket.connect((self.ip, self.port))
-                if which == 1:
-                    file_name = os.path.basename(data)
-                    clientSocket.sendall(f"FILE:{file_name}".encode())
-                    with open(data, 'rb') as file:
-                        clientSocket.sendfile(file)
-                    clientSocket.sendall(b"END")
-                elif which == 2:
-                    clientSocket.sendall(f"CMD:{data}".encode())
-                while True:
-                    data = clientSocket.recv(1024)
-                    if data == b"File received":
-                        break
-        except Exception as e:
-            sg.popup_error(e)
+    # Utworzenie klienta SSH
+    ssh_client = paramiko.SSHClient()
+    ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh_client.connect(hostname, port=port, username=username, password=password)
+    sftp = ssh_client.open_sftp()
+    sftp.get(remote_path, local_path)
+    sftp.close()
+    ssh_client.close()
+
+    with open(local_path, 'r') as file:
+        data = json.load(file)
+
+    formatted_data = "\n".join([f"{key}: {value}" for key, value in data.items()])
+
+    return formatted_data
+

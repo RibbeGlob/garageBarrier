@@ -73,12 +73,11 @@ class Engine:
 
 
 def capture_image():
-    subprocess.run(['libcamera-still','-t 10', '-o', 'image.jpg'])
+    subprocess.run(['libcamera-still', '-t', '10', '-o', 'image.jpg'])
     file_info = os.stat('image.jpg')
     modification_time = file_info.st_mtime
-    readable_time = datetime.datetime.fromtimestamp(modification_time)
+    readable_time = datetime.datetime.fromtimestamp(modification_time).strftime('%H:%M')
     return readable_time
-
 
 def api():
     path = r"/home/pi/samochodzik.jpg"
@@ -91,22 +90,58 @@ def api():
 
     if response.status_code == 201:
         try:
-            #os.remove(path)
             data = response.json()
             return data["results"][0]['plate']
-        except FileNotFoundError:
+        except (FileNotFoundError, KeyError, IndexError):
             return "error"
     else:
         return "error"
 
 def file_json(data, time):
-    with open('parking.json', 'w') as file:
-        json.dump({data : time}, file)
+    parking_filename = 'parking.json'
+    past_parking_filename = 'past_parking.json'
+    entry = {data: time}
+
+    # Sprawdzenie czy plik parking.json już istnieje
+    if os.path.isfile(parking_filename):
+        # Odczytanie istniejących danych
+        with open(parking_filename, 'r') as file:
+            existing_data = json.load(file)
+    else:
+        existing_data = {}
+
+    if data in existing_data:
+        # Oblicz różnicę czasów
+        previous_time = datetime.datetime.strptime(existing_data[data], '%H:%M')
+        current_time = datetime.datetime.strptime(time, '%H:%M')
+        time_difference = (current_time - previous_time).seconds / 60  # różnica w minutach
+
+        # Zapisz tablicę i różnicę czasów w past_parking.json
+        past_entry = {data: time_difference}
+        if os.path.isfile(past_parking_filename):
+            with open(past_parking_filename, 'r') as file:
+                past_data = json.load(file)
+            past_data.update(past_entry)
+        else:
+            past_data = past_entry
+
+        with open(past_parking_filename, 'w') as file:
+            json.dump(past_data, file, indent=4)
+
+        # Usuń tablicę z parking.json
+        del existing_data[data]
+    else:
+        # Dodaj nowy wpis, jeśli tablica nie istnieje
+        existing_data.update(entry)
+
+    # Zapisanie danych do parking.json
+    with open(parking_filename, 'w') as file:
+        json.dump(existing_data, file, indent=4)
 
 def change_mode(current_value):
     button = Button(3)
     button.wait_for_press()
-    if current_value%2 == 0:
+    if current_value % 2 == 0:
         print('xd')
     else:
         print('xx')
@@ -117,24 +152,23 @@ def main_logic():
     eng = None
     file_time = capture_image()
     time.sleep(2)
-    result = api()      # Tablica rejestracyjna
-    file_json(result, file_time)
+    result = api()  # Tablica rejestracyjna
     if result != "error":
+        file_json(result, file_time)
         if not eng:
             eng = Engine()
         eng.forward()
 
-
+def past_json():
+    pass
 
 def button_pressed():
     global running
     print("Przycisk został naciśnięty!")
     running = False  # Zatrzymaj działanie pętli
-    time.sleep(5)     # Odczekaj 5 sekund
-    running = True    # Wznów działanie pętli
+    time.sleep(5)  # Odczekaj 5 sekund
+    running = True  # Wznów działanie pętli
     print("Program kontynuuje działanie...")
-
-
 
 if __name__ == '__main__':
     confirm = 0

@@ -1,6 +1,7 @@
 import PySimpleGUI as sg
 from abc import ABC, abstractmethod
 import BackEnd as be
+import paramiko
 
 # Klasa odpowiedzialna za szkielet GUI
 class Pattern(sg.Window, ABC):
@@ -69,9 +70,15 @@ class MenuRaspberry(Pattern):
     def connectButtonClicked(self, values):
         print('xd')
 
+    def backend_integration(self, values):
+        xd = be.current_vehicles()
+        self['-AC-'].update(xd)
+
     def run(self, mapa, basicEvent = None):
         map = {
-            '-BT-': self.connectButtonClicked,
+            '-BA-': self.backend_integration,
+            '-PC-': be.past_vehicles,
+
         }
         super().run(map)
 

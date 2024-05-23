@@ -48,8 +48,8 @@ class Engine:
     def forward(self):
         start_time = time.time()
 
-        while time.time() - start_time < 5:
-            self.pwm.start(70)
+        while time.time() - start_time < 0.5:
+            self.pwm.start(19)
             GPIO.output(self.in_one_engine, GPIO.HIGH)
             GPIO.output(self.in_two_engine, GPIO.LOW)
             time.sleep(0.5)
@@ -61,8 +61,8 @@ class Engine:
     def backward(self):
         start_time = time.time()
 
-        while time.time() - start_time < 5:
-            self.pwm.start(70)
+        while time.time() - start_time < 0.5:
+            self.pwm.start(19)
             GPIO.output(self.in_one_engine, GPIO.LOW)
             GPIO.output(self.in_two_engine, GPIO.HIGH)
             time.sleep(0.5)
@@ -73,7 +73,7 @@ class Engine:
 
 
 def capture_image():
-    subprocess.run(['libcamera-still', '-t', '10', '-o', 'image.jpg'])
+    subprocess.run(['libcamera-still', '-t', '100', '-o', 'image.jpg'])
     file_info = os.stat('image.jpg')
     modification_time = file_info.st_mtime
     readable_time = datetime.datetime.fromtimestamp(modification_time).strftime('%H:%M')
@@ -91,6 +91,7 @@ def api():
     if response.status_code == 201:
         try:
             data = response.json()
+            print(data["results"][0]['plate'])
             return data["results"][0]['plate']
         except (FileNotFoundError, KeyError, IndexError):
             return "error"

@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 import BackEnd as be
 import paramiko
 
-# Klasa odpowiedzialna za szkielet GUI
 class Pattern(sg.Window, ABC):
     def __init__(self, field):
         super().__init__(title="garageBarrier", size=field)
@@ -45,6 +44,11 @@ class Pattern(sg.Window, ABC):
 # Klasa odpowiedzialna za główne menu RPI
 class MenuRaspberry(Pattern):
     def __init__(self):
+        self.ssh_client = None
+        self.hostname = 'malinka'
+        self.port = 22
+        self.username = 'pi'
+        self.password = 'malinka'
         size = (450, 240)
         super().__init__(size)
 
@@ -67,6 +71,24 @@ class MenuRaspberry(Pattern):
             ]
         )])
 
+    def connect_ssh(self):
+        if not self.ssh_client:
+            self.ssh_client = paramiko.SSHClient()
+            self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            self.ssh_client.connect(self.hostname, port=self.port, username=self.username, password=self.password)
+
+    def open_barrier(self, values):
+        self.connect_ssh()
+        stdin, stdout, stderr = self.ssh_client.exec_command('python3 /home/pi/engine.py open')
+        print(stdout.read().decode())
+        print(stderr.read().decode())
+
+    def close_barrier(self, values):
+        self.connect_ssh()
+        stdin, stdout, stderr = self.ssh_client.exec_command('python3 /home/pi/engine.py close')
+        print(stdout.read().decode())
+        print(stderr.read().decode())
+
     def connectButtonClicked(self, values):
         print('xd')
 
@@ -74,10 +96,16 @@ class MenuRaspberry(Pattern):
         xd = be.current_vehicles()
         self['-AC-'].update(xd)
 
+    def backend_integration2(self, values):
+        xd = be.past_vehicles()
+        self['-PC-'].update(xd)
+
     def run(self, mapa, basicEvent = None):
         map = {
             '-BA-': self.backend_integration,
-            '-PC-': be.past_vehicles,
+            '-BP-': self.backend_integration2,
+            '-BO-': self.open_barrier,
+            '-BC-': self.close_barrier,
 
         }
         super().run(map)

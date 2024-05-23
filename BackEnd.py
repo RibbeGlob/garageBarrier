@@ -53,12 +53,12 @@ def current_vehicles():
     return formatted_data
 
 
-def past_vehicles(window, values):
+def past_vehicles():
     hostname = 'malinka.local'
     port = 22  # Domyślny port SSH
     username = 'pi'
     password = 'malinka'
-    remote_path = r"/home/pi/parking.json"
+    remote_path = r"/home/pi/past_parking.json"
     local_path = r"C:\Users\gerfr\OneDrive\Pulpit\RPI\xd.json"
 
     # Utworzenie klienta SSH
